@@ -644,9 +644,10 @@ _mcrypt_check_version(sv_v)
     SV * sv_v
     PREINIT:
         char *v;
+        const char *p;
     CODE:
         ASSIGN_STR_PARAM(sv_v, v);
-        const char *p = mcrypt_check_version(v);
+        p = mcrypt_check_version(v);
         if (p) {
             RETVAL = newSVpv(p,strlen(p));
         }
