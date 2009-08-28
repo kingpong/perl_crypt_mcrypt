@@ -1,0 +1,456 @@
+NAME
+    Crypt::Mcrypt - Object oriented interface to libmcrypt
+
+SYNOPSIS
+      use Crypt::Mcrypt;
+
+      my $mc = Crypt::Mcrypt->new({
+          algorithm => 'tripledes',
+          mode      => 'cbc',
+          key       => $key,
+          iv        => $iv,
+          padding   => 1,
+      });
+
+      # Stateless, self-contained encryption
+      my $ciphertext = $mc->encrypt($plaintext);
+      my $plaintext  = $mc->decrypt($ciphertext);
+
+      # Stateful, progressive encryption
+      while (read(IN, $buffer, $mc->block_size)) {
+          print OUT $mc->encrypt_more($buffer); # or decrypt_more
+      }
+      print OUT $mc->encrypt_finish();  # or decrypt_finish
+
+DESCRIPTION
+    Crypt::Mcrypt provides access to the libmcrypt library through a simple
+    object-oriented Perl interface.
+
+    The low-level procedural interface is available via Crypt::Mcrypt::API.
+    You should probably use this module instead unless you know what you're
+    doing *and* this module doesn't provide what you need. (If that's you,
+    please let me know what I missed!)
+
+METHODS
+  Constructor
+    new
+          $mc = Crypt::Mcrypt->new;
+          $mc = Crypt::Mcrypt->new(\%args);
+
+        Creates a new Crypt::Mcrypt object. If \%args is provided, the
+        object will be initialized with its contents.
+
+        Please note that, before encrypting or decrypting, you MUST provide
+        an algorithm, a mode, and a key. Some configurations also require an
+        IV.
+
+        Valid parameters in \%args are:
+
+        algorithm or algo
+            The algorithm to be used. See mcrypt(3) for names and details of
+            algorithms available on your system. algo() is an alias for
+            algorithm().
+
+        mode
+            The mode to be used. See mcrypt(3) for names and details of
+            modes available on your system.
+
+        key The key to use for encryption. Consult mcrypt(3) to determine
+            the appropriate key size for your chosen algorithm.
+
+        iv  The initialization vector (IV) used to initialize the
+            crytography process. The IV size is usually the same as the
+            algorithm's block size, but if you're unsure, you can check by
+            using the "info" method.
+
+        padding
+            What kind of padding should be applied to the encrypted or
+            decrypted data in the case that the plaintext size is not an
+            exact multiple of the block size.
+
+            See the "padding" method for more details.
+
+        algorithm_dir or algo_dir
+            The directory where the algorithm module resides. Usually
+            unnecessary unless you are providing your own algorithm module
+            (and in that case, I probably don't need to explain this to
+            you). algo_dir() is an alias for algorithm_dir().
+
+        mode_dir
+            The directory where the mode module resides. Just like
+            algorithm_dir, you probably don't need this unless you're
+            providing your own mcrypt mode module.
+
+  Class Methods
+    These methods may be called on either a Crypt::Mcrypt object or on the
+    class itself.
+
+    algorithms or algos
+          @algorithms = Crypt::Mcrypt->algorithms;
+          @algorithms = Crypt::Mcrypt->algos;
+          @algorithms = $mc->algos;
+
+        Returns a list of algorithms supported by your system's libmcrypt.
+        algos() is an alias for algorithms().
+
+    modes
+          @modes = Crypt::Mcrypt->modes;
+          @modes = $mc->modes;
+
+        Returns a list of modes supported by your system's libmcrypt.
+
+    module_self_test
+          $ok = Crypt::Mcrypt->module_self_test($module_name);
+          $ok = $mc->module_self_test($module_name);
+
+        Performs a self test on the specified module and returns true if
+        successful, false otherwise.
+
+    algorithm_info
+          $info = Crypt::Mcrypt->algorithm_info($algorithm_name);
+          $info = $mc->algorithm_info($algorithm_name);
+
+        Returns a hash reference containing information about the specified
+        algorithm. If $algorithm_name is invalid, returns undef.
+
+        $info_hash contains these keys:
+
+        is_block_algorithm
+            Will be 1 if the algorithm is a block algorithm, 0 if it is a
+            stream algorithm.
+
+        max_key_size
+            The longest key size supported by the algorithm, in bytes.
+
+        block_size
+            The block size of the algorithm, in bytes.
+
+        version
+            The version number of the algorithm.
+
+    mode_info
+          $info = Crypt::Mcrypt->mode_info($mode_name);
+          $info = $mc->mode_info($mode_name);
+
+        Returns a hash reference containing information about the specified
+        algorithm. If $mode_name is invalid, returns undef.
+
+        $info_hash contains these keys:
+
+        is_block_algorithm_mode
+            Will be 1 if the mode is for use with block algorithms, 0
+            otherwise.
+
+        is_block_mode
+            Will be 1 if the mode outputs blocks, or 0 if it outputs
+            individual bytes.
+
+        version
+            The version number of the mode.
+
+    version
+          $version = Crypt::Mcrypt->version();
+          $version = $mc->version();
+
+        Returns the libmcrypt version number.
+
+    check_version
+          $version = Crypt::Mcrypt->check_version($required_version);
+          $version = $mc->check_version($required_version);
+
+        Checks $required_version string against the current mcrypt version.
+        Returns the current version if it is at least as new as
+        $required_version.
+
+  Instance Methods
+    algorithm or algo
+          $mc->algorithm($algorithm_name);
+          $mc->algo($algorithm_name);
+
+          $algorithm_name = $mc->algorithm;
+          $algorithm_name = $mc->algo;
+
+        Gets or sets the cryptographic algorithm to be used. Setting the
+        algorithm value will reset any internal state in the encryption
+        engine. algo() is an alias for algorithm().
+
+    mode
+          $mc->mode($mode_name);
+
+          $mode = $mc->mode;
+
+        Gets or sets the encryption mode to be used. Setting the mode value
+        will reset any internal state in the encryption engine.
+
+    key
+          $mc->key($key);
+
+          $key = $mc->key;
+
+        Sets or gets the encryption key. You MUST set the key before
+        encrypting or decrypting. Consult the mcrypt(3) man page to
+        determine the appropriate key size to use, depending on the
+        algorithm chosen.
+
+        You can also use the "supported_key_sizes" method to determine the
+        available key sizes for your configuration, e.g.
+
+          my $mc = Crypt::Mcrypt->new({ algo => 'tripledes', mode => 'cbc' });
+          my @key_sizes = $mc->supported_key_sizes();
+
+    iv
+          $mc->iv($iv);
+
+          $iv = $mc->iv;
+
+        Sets or gets the initialization vector (IV) used to initialize the
+        crytography process. With some modes, you MUST provide an IV before
+        encryption or decryption. See the mcrypt(3) man page to determine
+        whether this is the case.
+
+        You can also determine if an IV is required programatically, and if
+        so, what the size should be:
+
+          my $mc = Crypt::Mcrypt->new({ algo => 'tripledes', mode => 'cbc' });
+          my $needs_iv = $mc->info->{mode_has_iv};
+          my $iv_size  = $mc->info->{iv_size};  # bytes
+
+    padding
+          $mc->padding($padding_type);
+
+          $padding_type = $mc->padding;
+
+        Sets or gets what (if any) padding should be applied to the
+        encrypted or decrypted data in the case that the plaintext size is
+        not an exact multiple of the block size.
+
+        Changing the padding type will reset any internal state in the
+        encryption engine.
+
+        $padding_type may be any of:
+
+        undef, 0, '' or 'none'
+            Any false value disables padding entirely. This is the default.
+
+        "pkcs7", "pkcs5"
+            Padding according to PKCS#7 (or PKCS#5, depending what you
+            read). Each byte in the padding contains the number of padded
+            bytes. For example, if 5 bytes are needed, each of the 5 bytes
+            will contain the number 0x05. If the plaintext does fall on a
+            block boundary (where normally no padding would be required), an
+            entire block of padding will be added to avoid ambiguity.
+
+            This is the recommended padding method for interoperability
+            since it is widely supported on other platforms.
+
+            Example for block size 8:
+
+              Plaintext Block:  FF FF FF
+                 Padded Block:  FF FF FF 05 05 05 05 05
+
+        "zeros"
+            Each byte in the padding contains the value 0. This works well
+            for null- terminated strings but can be ambiguous when
+            decrypting raw binary data.
+
+    algorithm_dir or algo_dir
+          $mc->algorithm_dir($algorithm_dir);
+          $mc->algo_dir($algorithm_dir);
+
+          $algorithm_dir = $mc->algorithm_dir;
+          $algorithm_dir = $mc->algo_dir;
+
+        Sets or gets the directory where the algorithm module resides.
+        Usually unnecessary unless you are providing your own algorithm
+        module (and in that case, I probably don't need to explain this to
+        you). algo_dir() is an alias for algorithm_dir().
+
+    mode_dir
+          $mc->mode_dir($mode_dir);
+
+          $mode_dir = $mc->mode_dir;
+
+        Sets or gets the directory where the mode module resides. Just like
+        algorithm_dir, you probably don't need this unless you're providing
+        your own mcrypt mode module.
+
+    errcode
+          $err_code = $mc->errcode;
+
+        Returns the last error code generated by an internal call to
+        mcrypt_generic_init.
+
+    errstr
+          $err_str = $mc->errstr;
+
+        Returns a textual description of the last error code generated by an
+        internal call to mcrypt_generic_init.
+
+    supported_key_sizes
+          @key_sizes = $mc->supported_key_sizes;
+
+        Returns a list containing the supported key sizes (in bytes) of the
+        current algorithm.
+
+    encrypt
+          $ciphertext = $mc->encrypt($plaintext);
+          $ciphertext = $mc->encrypt(\$plaintext);
+
+        Encrypts the data in $plaintext and returns the encrypted text as a
+        scalar. The length of data $plaintext should be a multiple of the
+        algorithm's block size if a block cipher is used.
+
+        On failure, returns undef.
+
+    decrypt
+          $plaintext = $mc->decrypt($ciphertext);
+          $plaintext = $mc->decrypt(\$ciphertext);
+
+        Decrypts the data in $ciphertext and returns the decrypted text as a
+        scalar. The length of data in $ciphertext should be a multiple of
+        the algorithm's block size if a block cipher is used.
+
+    reset
+          $mc->reset();
+
+        Resets and initializes the internal encryption engine with the
+        current key and IV. You will generally only need this if you plan to
+        use encrypt_more or decrypt_more and you plan to encrypt or decrypt
+        more than one item with the same key and IV.
+
+    encrypt_more
+          $ciphertext_chunk = $mc->encrypt_more($plaintext_chunk);
+
+        Encrypts the data in $block and returns the ciphertext as a scalar.
+        Unlike "encrypt", this method does not reset the internal algorithm
+        state, so it can be used to encrypt a large document in smaller
+        chunks.
+
+        Plaintext input to this function will be buffered across calls until
+        it is large enough to fill a complete block, at which point the
+        encrypted data will be returned. That means this method might
+        sometimes return an empty string, even when $plaintext is not empty.
+
+        After you have finished processing the plaintext in chunks, you
+        should call "encrypt_finish" to get the final block.
+
+    encrypt_finish
+          $ciphertext .= $mc->encrypt_finish();
+
+        Returns the final ciphertext chunk for the encrypted stream. Padding
+        is applied in this step.
+
+    decrypt_more
+          $plaintext = $mc->decrypt_more($ciphertext);
+
+        Decrypts the data in $ciphertext and returns the plaintext as a
+        scalar. Unlike "decrypt", this method does not reset the internal
+        algorithm state, so it can be used to decrypt a large document in
+        smaller chunks.
+
+        Ciphertext input to this function will be buffered across calls
+        until it is large enough to fill a complete block, at which point
+        the decrypted data will be returned. That means this method might
+        sometimes return an empty string, even when $ciphertext is not
+        empty.
+
+        After you have finished processing the ciphertext in chunks, you
+        should call "decrypt_finish" to get the final block.
+
+    decrypt_finish
+          $ciphertext .= $mc->decrypt_finish();
+
+        Returns the final plaintext chunk for the decrypted stream. Padding
+        is removed in this step.
+
+    self_test
+          $ok = $mc->self_test;
+
+        Performs the algorithm internal self test and returns true if it
+        succeeds, false otherwise.
+
+    info
+          $info_hash = $mc->info;
+
+        Returns a hash reference containing information about the current
+        algorithm and mode.
+
+        $info_hash contains these keys:
+
+        block_size
+            The block size of the algorithm, in bytes.
+
+        iv_size
+            The size of the initialization vector (IV) of the algorithm, in
+            bytes.
+
+        max_key_size
+            The longest key size supported by the algorithm, in bytes.
+
+            To help those who are familiar with the libmcrypt API, this
+            value is also available under the key 'key_size'.
+
+        is_block_algorithm
+            Will be 1 if the algorithm is a block algorithm, 0 if it is a
+            stream algorithm.
+
+        is_block_mode
+            Will be 1 if the mode outputs blocks, or 0 if it outputs
+            individual bytes.
+
+        is_block_algorithm_mode
+            Will be 1 if the mode is for use with block algorithms,
+            otherwise 0.
+
+        mode_has_iv
+            Will be 1 if the mode requires an IV, 0 otherwise. Some 'stream'
+            algorithms may need an IV even if the mode itself does not
+            require an IV.
+
+        algorithm_name
+            Returns a friendly name for the algorithm being used, e.g. if
+            you specified "twofish" as the algorithm, this would return
+            "Twofish".
+
+            To help those who are familiar with the libmcrypt API, this
+            value is also available under the key 'algorithms_name'.
+
+        mode_name
+            Returns a friendly name for the mode being used, e.g. if you
+            specified "cbc" as the mode, this would return "CBC".
+
+            To help those who are familiar with the libmcrypt API, this
+            value is also available under the key 'modes_name'.
+
+    get_state
+          $state = $mc->get_state;
+
+        Returns a scalar containing the internal state of the algorithm,
+        which can be used later to restore the state. See "set_state".
+
+    set_state
+          $mc->set_state($state);
+
+        Sets the internal state of the algorithm using the data contained in
+        the scalar $state. $state was retrieved earlier using the
+        "get_state" method.
+
+        Returns true if successful, otherwise false.
+
+SEE ALSO
+    The mcrypt(3) man page.
+
+SUPPORT
+    The Crypt::Mcrypt module is free software. IT COMES WITHOUT WARRANTY OF
+    ANY KIND.
+
+AUTHOR
+    Philip Garrett, <philip at pastemagazine.com>
+
+COPYRIGHT AND LICENSE
+    Copyright (C) 2006-2009 by Philip Garrett
+
+    This library is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself, either Perl version 5.8.3 or, at
+    your option, any later version of Perl 5 you may have available.
+

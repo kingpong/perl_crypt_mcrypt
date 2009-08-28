@@ -1,0 +1,10 @@
+Changes
+Makefile.PL
+MANIFEST
+Mcrypt.xs
+ppport.h
+README
+typemap
+lib/Crypt/Mcrypt.pm
+lib/Crypt/Mcrypt/API.pm
+META.yml                                 Module meta-data (added by MakeMaker)

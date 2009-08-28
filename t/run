@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+for f in $*; do perl -Mblib $f; done

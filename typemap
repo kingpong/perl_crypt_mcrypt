@@ -1,0 +1,17 @@
+TYPEMAP
+MCRYPT						O_HANDLE_OBJ
+const char *					T_PTROBJ
+int *						T_PTROBJ
+
+OUTPUT
+O_HANDLE_OBJ
+	sv_setref_pv( $arg, \"Crypt::Mcrypt::Handle\", (void *)$var );
+
+INPUT
+O_HANDLE_OBJ
+    if (sv_derived_from($arg, \"Crypt::Mcrypt::Handle\")) {
+        IV tmp = SvIV((SV*)SvRV($arg));
+        $var = INT2PTR($type,tmp);
+    }
+    else
+        croak(\"$var is not of type Crypt::Mcrypt::Handle\")
