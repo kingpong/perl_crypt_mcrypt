@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 use blib;
 use strict;
-use Test::More tests => 105;
+use Test::More tests => 109;
 use Crypt::Mcrypt;
 
 #
@@ -132,6 +132,9 @@ foreach ('Crypt::Mcrypt', $mc) {
     }
 }
 
+like(Crypt::Mcrypt->version, qr/^\d+\.\d+\.\d+$/, "class version ok");
+like($mc->version, qr/^\d+\.\d+\.\d+$/, "instance version ok");
+
 is(Crypt::Mcrypt->check_version("2.0.0"), Crypt::Mcrypt::API::LIBMCRYPT_VERSION(),
     "class check_version ok");
 is($mc->check_version("2.0.0"), Crypt::Mcrypt::API::LIBMCRYPT_VERSION(),
@@ -182,11 +185,14 @@ $mc->iv(undef);
 is($mc->iv, undef, "allow iv reset ok");
 
 is($mc->errcode, undef, "errcode init ok");
+is($mc->errstr, undef, "errstr init ok");
 $mc->algo("my des");
 $mc->mode("cbc");
 $mc->key("a");
 $mc->encrypt("foo");    # should set error, no such algo
 ok($mc->errcode, "errcode set as expected");
+like($mc->errstr, qr/./, "errstr defined as expected");
+
 
 $mc->algo(undef);
 eval { $mc->supported_key_sizes };
